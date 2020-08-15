@@ -277,9 +277,8 @@ class App extends React.Component {
         }
         console.log(this.state.boardData.boards[0].id);
         if(sStatusId !== dStatusId) {
-            const valueString = `"{\\"label\\": ${dStatusLabel?`\\"${dStatusLabel}\\"`:"null"}}"`;
-            console.log(valueString);
             /*
+            const valueString = `"{\\"label\\": ${dStatusLabel?`\\"${dStatusLabel}\\"`:"null"}}"`;
         monday.api(`mutation ($boardId: Int!, $itemId: Int, $valueString: JSON!) {change_column_value (board_id: $boardId, item_id: $itemId, column_id: "status", value: $valueString) {id}}`,
                    {variables:{boardId: parseInt(this.state.boardData.boards[0].id), itemId: parseInt(draggableId), valueString: valueString}}).then(res=>{console.log(res)});
                    */
@@ -291,8 +290,8 @@ class App extends React.Component {
             const boardId = parseInt(this.state.boardData.boards[0].id);
             const columnId = "status";
             const itemId = parseInt(draggableId);
-            const value = `{\\"label\\": ${dStatusLabel?`\\"${dStatusLabel}\\"`:"null"}}`;
-            
+            const value = `"{\\"label\\": ${dStatusLabel?`\\"${dStatusLabel}\\"`:"null"}}"`;
+            console.log(value);
             const variables = { boardId, columnId, itemId, value };
 
             monday.api(query, { variables }).then(res=>{console.log(res)});
