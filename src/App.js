@@ -16,15 +16,15 @@ const descriptionTextStyles = {
         width:'100%',
     },
 };
-const footerTextStyles = {
+const getFooterTextStyles = textColor => ({
     root: {
-        color: '#333333',
+        color: textColor ||'#333333',
         fontSize: 12,
         fontWeight: FontWeights.semibold,
         marginRight: "4px",
         minWidth: "20px"
     },
-};
+});
 
 const headerStyle = {
     backgroundColor: '#c8c8c8',
@@ -99,7 +99,7 @@ const ItemCard = (props) => {
             style={getDraggableStyle(snapshot.isDragging, provided.draggableProps.style)}
         >
             <div style={{width:'100%', margin:"4px 0", padding:"2px"}}>
-                <div onClick={()=>{console.log(props.id);monday.execute('openItemCard', { itemId: parseInt(props.id), boardId: parseInt(props.boardId) });}}>
+                <div onClick={()=>{monday.execute('openItemCard', { itemId: parseInt(props.id), boardId: parseInt(props.boardId) });}}>
                     <Text styles={descriptionTextStyles} title={props.name} nowrap block>{props.name}</Text>
                 </div>
                 { props.tags.length>0 && 
@@ -110,8 +110,8 @@ const ItemCard = (props) => {
                     </div>
                 }
                 <div style={{padding: '12px 0px 0px', display:"flex"}}>
-                    <Text styles={footerTextStyles} title="Time Est.">{props.estimate || " "}</Text>
-                    <Text styles={footerTextStyles} title="Priority">{props.priority || " "}</Text>
+                    <Text styles={getFooterTextStyles()} title="Time Est.">{props.estimate || " "}</Text>
+                    <Text styles={getFooterTextStyles(props.priorityColor)} title="Priority">{props.priority || " "}</Text>
                     <Stack.Item grow={1}>
                         <span />
                     </Stack.Item>
@@ -132,6 +132,7 @@ const ItemCard = (props) => {
 };
 const ItemColumn = (props) => {
     const droppableId = props.status.id + " " + props.groupTitle;
+    console.log(props);
     return (
         <div style={{flex:1, width:0, margin: "0 4px"}}>
             <Text styles={labelStyles} nowrap block>{props.status.text || " "}</Text>
@@ -201,7 +202,8 @@ class App extends React.Component {
                 "id": val.id,
                 "name": val.name,
                 "priority": val.column_values.filter((cval)=>(cval.title === "Priority"))[0].text,
-                "status": val.column_values.filter((cval)=>(cval.title === "Status"))[0].text,
+                "priorityColor": JSON.parse(val.column_values.filter((cval)=>(cval.title === "Priority"))[0].additional_info || '{}').color,
+                "status": val.column_values.filter((cval)=>(cval.title === "Status"))[0].text||"",
                 "owner": val.column_values.filter((cval)=>(cval.title === "Owner"))[0].text,
                 "estimate": Number(val.column_values.filter((cval)=>(cval.title === "Time Est."))[0].text),
                 "tags": val.column_values.filter((cval)=>(cval.title === "Tags"))[0].text.split(", ").filter((t)=>t.length>0),
@@ -213,7 +215,7 @@ class App extends React.Component {
     
     updateStatusLabels=(boardData)=>{
         const statusJson = JSON.parse(boardData.boards[0].columns.filter((v=>(v.title==="Status")))[0].settings_str);
-        const statusList = Object.keys(statusJson.labels).map((s)=>({"id": s, "text": statusJson.labels[s], "pos": statusJson.labels_positions_v2[s]})).concat({"id":"-1","text":null, "pos":-1}).sort((a,b)=>a.pos-b.pos);
+        const statusList = Object.keys(statusJson.labels).map((s)=>({"id": s, "text": statusJson.labels[s], "pos": statusJson.labels_positions_v2[s]})).concat({"id":"-1","text":"", "pos":-1}).sort((a,b)=>a.pos-b.pos);
         this.setState({statusList: statusList});
     }
 
@@ -226,14 +228,13 @@ class App extends React.Component {
 
         monday.listen("context", res => {
             this.setState({context: res.data});
-            console.log(res.data);
-            monday.api(`query ($boardIds: [Int]) { boards (ids:$boardIds) { name id items {name id group { id } column_values { title text } } top_group { id title }  groups { id title } columns {title settings_str} } }`,
+            monday.api(`query ($boardIds: [Int]) { boards (ids:$boardIds) { name id items {name id group { id } column_values { title text additional_info } } top_group { id title }  groups { id title } columns {title settings_str} } }`,
                        { variables: {boardIds: this.state.context.boardIds} }
                       )
                 .then(res => {
+                console.log(res.data);
                 this.setState({boardData: res.data});
                 this.updateGroupItems(res.data);
-                console.log(res.data);
                 this.updateStatusLabels(res.data);
             });
             monday.api(`query  { users { name photo_thumb_small} }`)
@@ -251,7 +252,6 @@ class App extends React.Component {
             destination.index === source.index
         )
         return;
-        console.log(ev);
         const dStatusId = parseInt(destination.droppableId).toString();
         const dGroupId = destination.droppableId.substring(dStatusId.length+1);
         const sStatusId = parseInt(source.droppableId).toString();
@@ -262,26 +262,12 @@ class App extends React.Component {
         dGroupItem.status = dStatusLabel;
         groupItems.filter((g)=>g.id === dGroupId)[0].items.splice(destination.index, 0, dGroupItem);
         this.setState({groupItems: groupItems});
-        /*
-        monday.api(`query ($itemIds: [Int]) { items (ids:$itemIds) { name id } }`,
-                   { variables: {itemId: [parseInt(draggableId)]} }
-                  )
-            .then(res => {
-            console.log(res.data);
-        });
-        */
         
         if(sGroupId !== dGroupId) {
             monday.api(`mutation ($itemId: Int, $groupId: String!) { move_item_to_group (item_id:$itemId, group_id:$groupId) {id}}`,
                    {variables:{itemId: parseInt(draggableId), groupId: dGroupId}}).then(res=>{console.log(res)});
         }
-        console.log(this.state.boardData.boards[0].id);
         if(sStatusId !== dStatusId) {
-            /*
-            const valueString = `"{\\"label\\": ${dStatusLabel?`\\"${dStatusLabel}\\"`:"null"}}"`;
-        monday.api(`mutation ($boardId: Int!, $itemId: Int, $valueString: JSON!) {change_column_value (board_id: $boardId, item_id: $itemId, column_id: "status", value: $valueString) {id}}`,
-                   {variables:{boardId: parseInt(this.state.boardData.boards[0].id), itemId: parseInt(draggableId), valueString: valueString}}).then(res=>{console.log(res)});
-                   */
             const query = `mutation change_column_value($boardId: Int!, $itemId: Int!, $columnId: String!, $value: JSON!) {
                 change_column_value(board_id: $boardId, item_id: $itemId, column_id: $columnId, value: $value) {
                     id
@@ -291,7 +277,6 @@ class App extends React.Component {
             const columnId = "status";
             const itemId = parseInt(draggableId);
             const value = `"{\\"label\\": ${dStatusLabel?`\\"${dStatusLabel}\\"`:"null"}}"`;
-            console.log(value);
             const variables = { boardId, columnId, itemId, value };
 
             monday.api(query, { variables }).then(res=>{console.log(res)});
