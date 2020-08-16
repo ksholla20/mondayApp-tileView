@@ -1,9 +1,6 @@
 ## Overview
-This is a Monday app to display per user burndown data for a given group.
-There is a dropdown, where you can choose the group for which burndown chart is to be displayed.
-By default, top group is selected.
-On click of user bar, burndown chart for thet particular user is displayed.
-If hourly rate is enabled and set, invoice will be generated with given data.
+This is a Monday app to display the board as tile view.
+In this view, user can drag and drop item tiles to update status or change group
 
 ## Run the project
 
